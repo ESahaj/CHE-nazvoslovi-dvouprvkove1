@@ -2470,9 +2470,8 @@
   }
 
   function normalize(value) {
-    let text = String(value)
+    return String(value)
       .trim()
-      .toLowerCase()
       .replaceAll(' ', '')
       .replaceAll('.', '')
       .replaceAll('−', '-')
@@ -2487,20 +2486,7 @@
       .replaceAll('₇', '7')
       .replaceAll('₈', '8')
       .replaceAll('₉', '9')
-      .replaceAll('ⅰ', 'i')
-      .replaceAll('ⅱ', 'ii')
-      .replaceAll('ⅲ', 'iii')
-      .replaceAll('ⅳ', 'iv')
-      .replaceAll('ⅴ', 'v')
-      .replaceAll('ⅵ', 'vi')
-      .replaceAll('ⅶ', 'vii')
-      .replaceAll('ⅷ', 'viii')
       .normalize('NFC');
-
-    if (text === '1-' || text === '-1' || text === '-i') return '-i';
-    if (text === '2-' || text === '-2' || text === '-ii') return '-ii';
-    if (text === '3-' || text === '-3' || text === '-iii') return '-iii';
-    return text;
   }
 
   function setupCustomTabOrder() {
