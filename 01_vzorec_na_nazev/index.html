@@ -192,6 +192,50 @@
     border-radius: 8px !important;
   }
 
+
+
+  /* Úprava rozmístění ovládání: zpět vlevo, kontrola+další uprostřed, nápověda vpravo */
+  .controls {
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px !important;
+    background: #fff !important;
+    border-top: 1px solid #d6d6d6 !important;
+  }
+  .control-center {
+    grid-column: 2 !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    flex-wrap: wrap !important;
+  }
+  .controls button {
+    min-width: 170px !important;
+    padding: 12px 18px !important;
+  }
+  .controls .home {
+    grid-column: 1 !important;
+    justify-self: start !important;
+    min-width: 170px !important;
+    padding: 12px 18px !important;
+  }
+  .controls .solution {
+    grid-column: 3 !important;
+    justify-self: end !important;
+  }
+  @media (max-width: 820px) {
+    .controls { grid-template-columns: 1fr !important; }
+    .controls .home, .controls .solution, .control-center {
+      grid-column: 1 !important;
+      justify-self: stretch !important;
+      width: 100% !important;
+    }
+    .control-center { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+    .controls button, .controls .home { min-width: 0 !important; }
+  }
+
 </style>
 </head>
 <body>
@@ -214,10 +258,12 @@
     </section>
 
     <section class="controls">
-      <button class="check" id="checkBtn">Zkontrolovat</button>
+      <a class="home" href="../index.html" aria-label="Zpět na úvodní stránku">← Zpět</a>
+      <div class="control-center" aria-label="Kontrola a další úloha">
+        <button class="check" id="checkBtn">Zkontrolovat</button>
+        <button class="next" id="nextBtn">Další sloučenina</button>
+      </div>
       <button class="solution" id="solutionBtn">Nápověda</button>
-      <button class="next" id="nextBtn">Další sloučenina</button>
-      <a class="home" href="../index.html" aria-label="Zpět na úvodní stránku">← Zpět na úvod</a>
     </section>
 
     <div id="message" class="message"></div>
@@ -2283,17 +2329,28 @@
 
   function showSolution() {
     const task = tasks[current];
-    inputs.forEach(([id, key]) => {
+    const hintInputs = [
+      ['inputElement', 'element'],
+      ['inputElementOx', 'oxRoman'],
+      ['inputAnionParticle', 'anionParticle'],
+      ['inputAnionOx', 'anionChargeTop'],
+      ['inputElementCount', 'elementCount'],
+      ['inputAnionCount', 'anionCount']
+    ];
+
+    hintInputs.forEach(([id, key]) => {
       setFieldValue(id, task[key]);
       el(id).classList.remove('bad');
       el(id).classList.add('ok');
     });
-    const fullName = `${task.anion} ${task.stem}${task.suffix}`;
-    el('message').className = 'message info';
-    el('message').innerHTML =
-      `<strong>Řešení je doplněné do políček.</strong><br>` +
-      `Vzorec: <strong>${task.formula}</strong><br>` +
-      `Výsledný název: <strong>${fullName}</strong>.`;
+
+    // Nápověda nesmí prozradit výsledný název dole.
+    ['inputAnionName', 'inputStem', 'inputSuffix'].forEach((id) => {
+      el(id).classList.remove('ok', 'bad');
+    });
+
+    el('message').className = 'message';
+    el('message').innerHTML = '';
   }
 
   function nextTask() {
