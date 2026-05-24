@@ -1,0 +1,2530 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Názvosloví – název → vzorec</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #ececec;
+    font-family: Georgia, "Times New Roman", serif;
+    color: #111;
+  }
+  .app { width: min(100vw, 1800px); margin: 0 auto; }
+  .board {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2048 / 804;
+    background: url('board.jpg') center / 100% 100% no-repeat;
+    overflow: hidden;
+  }
+  .given, .field {
+    position: absolute;
+    color: #111;
+    font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+    font-weight: 600;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+    z-index: 5;
+  }
+  .given {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+    pointer-events: none;
+    padding-top: 0.08em;
+  }
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    line-height: 1;
+    padding: 0.16em 0.08em 0;
+    caret-color: #111;
+    user-select: text;
+  }
+  .field.small {
+    padding-top: 0.12em;
+  }
+  .field.formula {
+    padding-top: 0.18em;
+  }
+  .field.main { font-size: clamp(22px, 2.75vw, 50px); }
+  .field.small { font-size: clamp(17px, 2.0vw, 32px); padding-top: 0.12em; }
+  .field.formula { font-size: clamp(24px, 3.1vw, 58px); padding-top: 0.28em !important; }
+  .given.top { font-size: clamp(18px, 2.1vw, 38px); padding-top: 0.24em !important; }
+  .field:focus { box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.38); border-radius: 8px; }
+  .field.ok { box-shadow: 0 0 0 3px rgba(22,163,74,0.78); border-radius: 8px; }
+  .field.bad { box-shadow: 0 0 0 3px rgba(220,38,38,0.78); border-radius: 8px; }
+  .field::selection { background: rgba(37, 99, 235, 0.18); }
+
+  /* zadané části názvu nahoře */
+  #givenAnion { left: 26.8%; top: 20.0%; width: 14.2%; height: 12.2%; }
+  #givenStem { left: 43.7%; top: 20.0%; width: 19.1%; height: 12.2%; }
+  #givenSuffix { left: 63.2%; top: 20.0%; width: 10.4%; height: 12.0%; }
+
+  /* doplňovací políčka uprostřed */
+  #inputElement { left: 33.85%; top: 44.05%; width: 6.55%; height: 15.7%; }
+  #inputOxRoman { left: 40.55%; top: 40.5%; width: 3.2%; height: 8.0%; }
+  #inputAnionParticle { left: 44.95%; top: 44.05%; width: 6.05%; height: 15.7%; }
+  #inputAnionChargeTop { left: 51.45%; top: 40.5%; width: 3.15%; height: 8.0%; }
+  #inputLeftCount { left: 40.55%; top: 56.0%; width: 3.15%; height: 7.9%; }
+  #inputRightCount { left: 51.4%; top: 56.0%; width: 3.15%; height: 7.9%; }
+
+  /* vzorec dole */
+  #inputFormula { left: 34.25%; top: 81.8%; width: 16.9%; height: 12.0%; }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 220px));
+    justify-content: center;
+    gap: 10px;
+    padding: 12px;
+    background: #fff;
+    border-top: 1px solid #d6d6d6;
+  }
+  button {
+    border: 0;
+    border-radius: 12px;
+    padding: 12px 10px;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .check { background: #2563eb; color: white; }
+  .solution { background: #e5e7eb; color: #111; }
+  .next { background: #16a34a; color: white; }
+  .home {
+    grid-column: 1 / -1;
+    background: #111827;
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    padding: 12px 10px;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    text-align: center;
+    font-family: Arial, sans-serif;
+  }
+  .home:hover { background: #374151; }
+  .message { display: none; padding: 14px 16px; font-weight: 700; line-height: 1.5; background: #fff; }
+  .message.ok { display:block; background:#bbf7d0; color:#14532d; }
+  .message.bad { display:block; background:#fecaca; color:#7f1d1d; }
+  .message.info { display:block; background:#fef3c7; color:#78350f; }
+  .legend { padding: 10px 16px 16px; font-size: 0.97rem; background:#fff; color:#333; }
+  @media (max-width: 820px) {
+    button { font-size: 0.92rem; padding: 10px 8px; }
+    .controls { grid-template-columns: 1fr 1fr; }
+    .legend { font-size: 0.9rem; }
+  }
+
+  .givenFormula, .given, .field {
+    color: #111111 !important;
+    font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif !important;
+    font-weight: 600 !important;
+  }
+
+  .field {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    line-height: 1 !important;
+    padding: 0.16em 0.08em 0 !important;
+    caret-color: #111111 !important;
+    user-select: text !important;
+  }
+
+  .field.small {
+    padding-top: 0.12em !important;
+  }
+
+  .field.formula {
+    padding-top: 0.18em !important;
+  }
+
+  .given, .givenFormula {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    line-height: 1 !important;
+    padding-top: 0.08em !important;
+  }
+
+  .field:focus {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35) !important;
+    border-radius: 8px !important;
+  }
+
+  .field.ok {
+    box-shadow: 0 0 0 3px rgba(22,163,74,0.78) !important;
+    border-radius: 8px !important;
+  }
+
+  .field.bad {
+    box-shadow: 0 0 0 3px rgba(220,38,38,0.78) !important;
+    border-radius: 8px !important;
+  }
+
+</style>
+</head>
+<body>
+<main class="app">
+  <section class="board" aria-label="Interaktivní podklad pro názvosloví – název na vzorec">
+    <div id="givenAnion" class="given top" aria-label="zadané podstatné jméno"></div>
+    <div id="givenStem" class="given top" aria-label="zadaný kmen přídavného jména"></div>
+    <div id="givenSuffix" class="given top" aria-label="zadaná koncovka oxidačního čísla"></div>
+
+    <div id="inputElement" class="field main" contenteditable="true" spellcheck="false" role="textbox" aria-label="značka prvku" tabindex="1"></div>
+    <div id="inputOxRoman" class="field small" contenteditable="true" spellcheck="false" role="textbox" aria-label="oxidační číslo prvku" tabindex="2"></div>
+    <div id="inputAnionParticle" class="field main" contenteditable="true" spellcheck="false" role="textbox" aria-label="částice podstatného jména" tabindex="3"></div>
+    <div id="inputAnionChargeTop" class="field small" contenteditable="true" spellcheck="false" role="textbox" aria-label="oxidační číslo aniontu" tabindex="4"></div>
+    <div id="inputLeftCount" class="field small" contenteditable="true" spellcheck="false" role="textbox" aria-label="levé dolní číslo" tabindex="5"></div>
+    <div id="inputRightCount" class="field small" contenteditable="true" spellcheck="false" role="textbox" aria-label="pravé dolní číslo" tabindex="6"></div>
+    <div id="inputFormula" class="field formula" contenteditable="true" spellcheck="false" role="textbox" aria-label="vzorec sloučeniny" tabindex="7"></div>
+  </section>
+
+  <section class="controls">
+    <button class="check" id="checkBtn">Zkontrolovat</button>
+    <button class="solution" id="solutionBtn">Nápověda</button>
+    <button class="next" id="nextBtn">Další sloučenina</button>
+    <a class="home" href="../index.html" aria-label="Zpět na úvodní stránku">← Zpět na úvod</a>
+  </section>
+
+  <div id="message" class="message"></div>
+  <div class="legend">
+    1.Napiš značky prvků - 2.Urči jejich oxidační čísla (kationty dle koncovky, anionty z červené tabulky vlevo) - 3. Sepiš čísla křížem dolů, ale už arabskými číslicemi - 4. Zkrať obě čísla
+  </div>
+</main>
+
+<script>
+  let tasks = [
+    {
+        "anion": "oxid",
+        "stem": "uhl",
+        "suffix": "ičitý",
+        "element": "C",
+        "oxRoman": "IV",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "4",
+        "formula": "CO₂"
+    },
+    {
+        "anion": "oxid",
+        "stem": "uhel",
+        "suffix": "natý",
+        "element": "C",
+        "oxRoman": "II",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "2",
+        "formula": "CO"
+    },
+    {
+        "anion": "oxid",
+        "stem": "siř",
+        "suffix": "ičitý",
+        "element": "S",
+        "oxRoman": "IV",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "4",
+        "formula": "SO₂"
+    },
+    {
+        "anion": "oxid",
+        "stem": "sír",
+        "suffix": "ový",
+        "element": "S",
+        "oxRoman": "VI",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "6",
+        "formula": "SO₃"
+    },
+    {
+        "anion": "oxid",
+        "stem": "hlin",
+        "suffix": "itý",
+        "element": "Al",
+        "oxRoman": "III",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "3",
+        "formula": "Al₂O₃"
+    },
+    {
+        "anion": "oxid",
+        "stem": "želez",
+        "suffix": "itý",
+        "element": "Fe",
+        "oxRoman": "III",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "3",
+        "formula": "Fe₂O₃"
+    },
+    {
+        "anion": "oxid",
+        "stem": "želez",
+        "suffix": "natý",
+        "element": "Fe",
+        "oxRoman": "II",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "2",
+        "formula": "FeO"
+    },
+    {
+        "anion": "oxid",
+        "stem": "vápe",
+        "suffix": "natý",
+        "element": "Ca",
+        "oxRoman": "II",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "2",
+        "formula": "CaO"
+    },
+    {
+        "anion": "oxid",
+        "stem": "hořeč",
+        "suffix": "natý",
+        "element": "Mg",
+        "oxRoman": "II",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "2",
+        "formula": "MgO"
+    },
+    {
+        "anion": "oxid",
+        "stem": "sod",
+        "suffix": "ný",
+        "element": "Na",
+        "oxRoman": "I",
+        "anionParticle": "O",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "1",
+        "formula": "Na₂O"
+    },
+    {
+        "anion": "chlorid",
+        "stem": "sod",
+        "suffix": "ný",
+        "element": "Na",
+        "oxRoman": "I",
+        "anionParticle": "Cl",
+        "anionChargeTop": "-I",
+        "leftCount": "1",
+        "rightCount": "1",
+        "formula": "NaCl"
+    },
+    {
+        "anion": "chlorid",
+        "stem": "drasel",
+        "suffix": "ný",
+        "element": "K",
+        "oxRoman": "I",
+        "anionParticle": "Cl",
+        "anionChargeTop": "-I",
+        "leftCount": "1",
+        "rightCount": "1",
+        "formula": "KCl"
+    },
+    {
+        "anion": "chlorid",
+        "stem": "vápe",
+        "suffix": "natý",
+        "element": "Ca",
+        "oxRoman": "II",
+        "anionParticle": "Cl",
+        "anionChargeTop": "-I",
+        "leftCount": "1",
+        "rightCount": "2",
+        "formula": "CaCl₂"
+    },
+    {
+        "anion": "chlorid",
+        "stem": "hlin",
+        "suffix": "itý",
+        "element": "Al",
+        "oxRoman": "III",
+        "anionParticle": "Cl",
+        "anionChargeTop": "-I",
+        "leftCount": "1",
+        "rightCount": "3",
+        "formula": "AlCl₃"
+    },
+    {
+        "anion": "sulfid",
+        "stem": "sod",
+        "suffix": "ný",
+        "element": "Na",
+        "oxRoman": "I",
+        "anionParticle": "S",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "1",
+        "formula": "Na₂S"
+    },
+    {
+        "anion": "sulfid",
+        "stem": "želez",
+        "suffix": "natý",
+        "element": "Fe",
+        "oxRoman": "II",
+        "anionParticle": "S",
+        "anionChargeTop": "-II",
+        "leftCount": "2",
+        "rightCount": "2",
+        "formula": "FeS"
+    },
+    {
+        "anion": "hydroxid",
+        "stem": "sod",
+        "suffix": "ný",
+        "element": "Na",
+        "oxRoman": "I",
+        "anionParticle": "OH",
+        "anionChargeTop": "-I",
+        "leftCount": "1",
+        "rightCount": "1",
+        "formula": "NaOH"
+    },
+    {
+        "anion": "hydroxid",
+        "stem": "vápe",
+        "suffix": "natý",
+        "element": "Ca",
+        "oxRoman": "II",
+        "anionParticle": "OH",
+        "anionChargeTop": "-I",
+        "leftCount": "1",
+        "rightCount": "2",
+        "formula": "Ca(OH)₂"
+    },
+    {
+        "anion": "hydroxid",
+        "stem": "hlin",
+        "suffix": "itý",
+        "element": "Al",
+        "oxRoman": "III",
+        "anionParticle": "OH",
+        "anionChargeTop": "-I",
+        "leftCount": "1",
+        "rightCount": "3",
+        "formula": "Al(OH)₃"
+    },
+    {
+        "anion": "kyanid",
+        "stem": "drasel",
+        "suffix": "ný",
+        "element": "K",
+        "oxRoman": "I",
+        "anionParticle": "CN",
+        "anionChargeTop": "-I",
+        "leftCount": "1",
+        "rightCount": "1",
+        "formula": "KCN"
+    }, 
+{
+    anion: "oxid",
+    stem: "uhl",
+    suffix: "ičitý",
+    element: "C",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "CO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "uhel",
+    suffix: "natý",
+    element: "C",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CO"
+  },
+  {
+    anion: "oxid",
+    stem: "siř",
+    suffix: "ičitý",
+    element: "S",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "SO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "sír",
+    suffix: "ový",
+    element: "S",
+    oxRoman: "VI",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "3",
+    formula: "SO₃"
+  },
+  {
+    anion: "oxid",
+    stem: "dus",
+    suffix: "ný",
+    element: "N",
+    oxRoman: "I",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "N₂O"
+  },
+  {
+    anion: "oxid",
+    stem: "dus",
+    suffix: "natý",
+    element: "N",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "NO"
+  },
+  {
+    anion: "oxid",
+    stem: "dus",
+    suffix: "ičitý",
+    element: "N",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "NO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "fosfor",
+    suffix: "ečný",
+    element: "P",
+    oxRoman: "V",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "5",
+    formula: "P₂O₅"
+  },
+  {
+    anion: "oxid",
+    stem: "křem",
+    suffix: "ičitý",
+    element: "Si",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "SiO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "bor",
+    suffix: "itý",
+    element: "B",
+    oxRoman: "III",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "B₂O₃"
+  },
+  {
+    anion: "oxid",
+    stem: "vápe",
+    suffix: "natý",
+    element: "Ca",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CaO"
+  },
+  {
+    anion: "oxid",
+    stem: "hořeč",
+    suffix: "natý",
+    element: "Mg",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "MgO"
+  },
+  {
+    anion: "oxid",
+    stem: "hlin",
+    suffix: "itý",
+    element: "Al",
+    oxRoman: "III",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "Al₂O₃"
+  },
+  {
+    anion: "oxid",
+    stem: "sod",
+    suffix: "ný",
+    element: "Na",
+    oxRoman: "I",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "Na₂O"
+  },
+  {
+    anion: "oxid",
+    stem: "drasel",
+    suffix: "ný",
+    element: "K",
+    oxRoman: "I",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "K₂O"
+  },
+  {
+    anion: "oxid",
+    stem: "lith",
+    suffix: "ný",
+    element: "Li",
+    oxRoman: "I",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "Li₂O"
+  },
+  {
+    anion: "oxid",
+    stem: "bar",
+    suffix: "natý",
+    element: "Ba",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "BaO"
+  },
+  {
+    anion: "oxid",
+    stem: "stront",
+    suffix: "natý",
+    element: "Sr",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "SrO"
+  },
+  {
+    anion: "oxid",
+    stem: "zineč",
+    suffix: "natý",
+    element: "Zn",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "ZnO"
+  },
+  {
+    anion: "oxid",
+    stem: "měď",
+    suffix: "ný",
+    element: "Cu",
+    oxRoman: "I",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "Cu₂O"
+  },
+  {
+    anion: "oxid",
+    stem: "měď",
+    suffix: "natý",
+    element: "Cu",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CuO"
+  },
+  {
+    anion: "oxid",
+    stem: "želez",
+    suffix: "natý",
+    element: "Fe",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "FeO"
+  },
+  {
+    anion: "oxid",
+    stem: "želez",
+    suffix: "itý",
+    element: "Fe",
+    oxRoman: "III",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "Fe₂O₃"
+  },
+  {
+    anion: "oxid",
+    stem: "mangan",
+    suffix: "ičitý",
+    element: "Mn",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "MnO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "chrom",
+    suffix: "itý",
+    element: "Cr",
+    oxRoman: "III",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "Cr₂O₃"
+  },
+  {
+    anion: "oxid",
+    stem: "nikel",
+    suffix: "natý",
+    element: "Ni",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "NiO"
+  },
+  {
+    anion: "oxid",
+    stem: "kobalt",
+    suffix: "natý",
+    element: "Co",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CoO"
+  },
+  {
+    anion: "oxid",
+    stem: "cín",
+    suffix: "ičitý",
+    element: "Sn",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "SnO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "olov",
+    suffix: "natý",
+    element: "Pb",
+    oxRoman: "II",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "PbO"
+  },
+  {
+    anion: "oxid",
+    stem: "olov",
+    suffix: "ičitý",
+    element: "Pb",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "PbO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "titan",
+    suffix: "ičitý",
+    element: "Ti",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "TiO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "zirkon",
+    suffix: "ičitý",
+    element: "Zr",
+    oxRoman: "IV",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "ZrO₂"
+  },
+  {
+    anion: "oxid",
+    stem: "vanad",
+    suffix: "ičný",
+    element: "V",
+    oxRoman: "V",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "5",
+    formula: "V₂O₅"
+  },
+  {
+    anion: "oxid",
+    stem: "wolfram",
+    suffix: "ový",
+    element: "W",
+    oxRoman: "VI",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "3",
+    formula: "WO₃"
+  },
+  {
+    anion: "oxid",
+    stem: "molybden",
+    suffix: "ový",
+    element: "Mo",
+    oxRoman: "VI",
+    anionParticle: "O",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "3",
+    formula: "MoO₃"
+  },
+  {
+    anion: "sulfid",
+    stem: "sod",
+    suffix: "ný",
+    element: "Na",
+    oxRoman: "I",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "Na₂S"
+  },
+  {
+    anion: "sulfid",
+    stem: "drasel",
+    suffix: "ný",
+    element: "K",
+    oxRoman: "I",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "K₂S"
+  },
+  {
+    anion: "sulfid",
+    stem: "amon",
+    suffix: "ný",
+    element: "NH₄",
+    oxRoman: "I",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "(NH₄)₂S"
+  },
+  {
+    anion: "sulfid",
+    stem: "vápe",
+    suffix: "natý",
+    element: "Ca",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CaS"
+  },
+  {
+    anion: "sulfid",
+    stem: "hořeč",
+    suffix: "natý",
+    element: "Mg",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "MgS"
+  },
+  {
+    anion: "sulfid",
+    stem: "bar",
+    suffix: "natý",
+    element: "Ba",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "BaS"
+  },
+  {
+    anion: "sulfid",
+    stem: "stront",
+    suffix: "natý",
+    element: "Sr",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "SrS"
+  },
+  {
+    anion: "sulfid",
+    stem: "hlin",
+    suffix: "itý",
+    element: "Al",
+    oxRoman: "III",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "Al₂S₃"
+  },
+  {
+    anion: "sulfid",
+    stem: "želez",
+    suffix: "natý",
+    element: "Fe",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "FeS"
+  },
+  {
+    anion: "sulfid",
+    stem: "želez",
+    suffix: "itý",
+    element: "Fe",
+    oxRoman: "III",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "Fe₂S₃"
+  },
+  {
+    anion: "sulfid",
+    stem: "měď",
+    suffix: "ný",
+    element: "Cu",
+    oxRoman: "I",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "Cu₂S"
+  },
+  {
+    anion: "sulfid",
+    stem: "měď",
+    suffix: "natý",
+    element: "Cu",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CuS"
+  },
+  {
+    anion: "sulfid",
+    stem: "zineč",
+    suffix: "natý",
+    element: "Zn",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "ZnS"
+  },
+  {
+    anion: "sulfid",
+    stem: "kadem",
+    suffix: "natý",
+    element: "Cd",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CdS"
+  },
+  {
+    anion: "sulfid",
+    stem: "rtuť",
+    suffix: "natý",
+    element: "Hg",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "HgS"
+  },
+  {
+    anion: "sulfid",
+    stem: "olov",
+    suffix: "natý",
+    element: "Pb",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "PbS"
+  },
+  {
+    anion: "sulfid",
+    stem: "stříbr",
+    suffix: "ný",
+    element: "Ag",
+    oxRoman: "I",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "1",
+    formula: "Ag₂S"
+  },
+  {
+    anion: "sulfid",
+    stem: "nikel",
+    suffix: "natý",
+    element: "Ni",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "NiS"
+  },
+  {
+    anion: "sulfid",
+    stem: "kobalt",
+    suffix: "natý",
+    element: "Co",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CoS"
+  },
+  {
+    anion: "sulfid",
+    stem: "mangan",
+    suffix: "natý",
+    element: "Mn",
+    oxRoman: "II",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "MnS"
+  },
+  {
+    anion: "sulfid",
+    stem: "cín",
+    suffix: "ičitý",
+    element: "Sn",
+    oxRoman: "IV",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "SnS₂"
+  },
+  {
+    anion: "sulfid",
+    stem: "antimon",
+    suffix: "itý",
+    element: "Sb",
+    oxRoman: "III",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "Sb₂S₃"
+  },
+  {
+    anion: "sulfid",
+    stem: "arsen",
+    suffix: "itý",
+    element: "As",
+    oxRoman: "III",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "As₂S₃"
+  },
+  {
+    anion: "sulfid",
+    stem: "bismut",
+    suffix: "itý",
+    element: "Bi",
+    oxRoman: "III",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "2",
+    rightCount: "3",
+    formula: "Bi₂S₃"
+  },
+  {
+    anion: "sulfid",
+    stem: "molybden",
+    suffix: "ičitý",
+    element: "Mo",
+    oxRoman: "IV",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "MoS₂"
+  },
+  {
+    anion: "sulfid",
+    stem: "wolfram",
+    suffix: "ičitý",
+    element: "W",
+    oxRoman: "IV",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "WS₂"
+  },
+  {
+    anion: "sulfid",
+    stem: "titan",
+    suffix: "ičitý",
+    element: "Ti",
+    oxRoman: "IV",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "TiS₂"
+  },
+  {
+    anion: "sulfid",
+    stem: "zirkon",
+    suffix: "ičitý",
+    element: "Zr",
+    oxRoman: "IV",
+    anionParticle: "S",
+    anionChargeTop: "-II",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "ZrS₂"
+  },
+  {
+    anion: "chlorid",
+    stem: "sod",
+    suffix: "ný",
+    element: "Na",
+    oxRoman: "I",
+    anionParticle: "Cl",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "NaCl"
+  },
+  {
+    anion: "chlorid",
+    stem: "drasel",
+    suffix: "ný",
+    element: "K",
+    oxRoman: "I",
+    anionParticle: "Cl",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "KCl"
+  },
+  {
+    anion: "chlorid",
+    stem: "vápe",
+    suffix: "natý",
+    element: "Ca",
+    oxRoman: "II",
+    anionParticle: "Cl",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "CaCl₂"
+  },
+  {
+    anion: "chlorid",
+    stem: "hořeč",
+    suffix: "natý",
+    element: "Mg",
+    oxRoman: "II",
+    anionParticle: "Cl",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "MgCl₂"
+  },
+  {
+    anion: "chlorid",
+    stem: "želez",
+    suffix: "itý",
+    element: "Fe",
+    oxRoman: "III",
+    anionParticle: "Cl",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "3",
+    formula: "FeCl₃"
+  },
+  {
+    anion: "fluorid",
+    stem: "sod",
+    suffix: "ný",
+    element: "Na",
+    oxRoman: "I",
+    anionParticle: "F",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "NaF"
+  },
+  {
+    anion: "fluorid",
+    stem: "vápe",
+    suffix: "natý",
+    element: "Ca",
+    oxRoman: "II",
+    anionParticle: "F",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "CaF₂"
+  },
+  {
+    anion: "bromid",
+    stem: "stříbr",
+    suffix: "ný",
+    element: "Ag",
+    oxRoman: "I",
+    anionParticle: "Br",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "AgBr"
+  },
+  {
+    anion: "jodid",
+    stem: "drasel",
+    suffix: "ný",
+    element: "K",
+    oxRoman: "I",
+    anionParticle: "I",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "KI"
+  },
+  {
+    anion: "kyanid",
+    stem: "sod",
+    suffix: "ný",
+    element: "Na",
+    oxRoman: "I",
+    anionParticle: "CN",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "NaCN"
+  },
+  {
+    anion: "kyanid",
+    stem: "drasel",
+    suffix: "ný",
+    element: "K",
+    oxRoman: "I",
+    anionParticle: "CN",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "KCN"
+  },
+  {
+    anion: "kyanid",
+    stem: "měď",
+    suffix: "ný",
+    element: "Cu",
+    oxRoman: "I",
+    anionParticle: "CN",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "CuCN"
+  },
+  {
+    anion: "kyanid",
+    stem: "stříbr",
+    suffix: "ný",
+    element: "Ag",
+    oxRoman: "I",
+    anionParticle: "CN",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "AgCN"
+  },
+  {
+    anion: "kyanid",
+    stem: "zineč",
+    suffix: "natý",
+    element: "Zn",
+    oxRoman: "II",
+    anionParticle: "CN",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "Zn(CN)₂"
+  },
+  {
+    anion: "hydroxid",
+    stem: "sod",
+    suffix: "ný",
+    element: "Na",
+    oxRoman: "I",
+    anionParticle: "OH",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "NaOH"
+  },
+  {
+    anion: "hydroxid",
+    stem: "drasel",
+    suffix: "ný",
+    element: "K",
+    oxRoman: "I",
+    anionParticle: "OH",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "1",
+    formula: "KOH"
+  },
+  {
+    anion: "hydroxid",
+    stem: "vápe",
+    suffix: "natý",
+    element: "Ca",
+    oxRoman: "II",
+    anionParticle: "OH",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "Ca(OH)₂"
+  },
+  {
+    anion: "hydroxid",
+    stem: "hořeč",
+    suffix: "natý",
+    element: "Mg",
+    oxRoman: "II",
+    anionParticle: "OH",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "Mg(OH)₂"
+  },
+  {
+    anion: "hydroxid",
+    stem: "hlin",
+    suffix: "itý",
+    element: "Al",
+    oxRoman: "III",
+    anionParticle: "OH",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "3",
+    formula: "Al(OH)₃"
+  },
+  {
+    anion: "hydroxid",
+    stem: "želez",
+    suffix: "itý",
+    element: "Fe",
+    oxRoman: "III",
+    anionParticle: "OH",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "3",
+    formula: "Fe(OH)₃"
+  },
+  {
+    anion: "hydroxid",
+    stem: "měď",
+    suffix: "natý",
+    element: "Cu",
+    oxRoman: "II",
+    anionParticle: "OH",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "Cu(OH)₂"
+  },
+  {
+    anion: "hydroxid",
+    stem: "zineč",
+    suffix: "natý",
+    element: "Zn",
+    oxRoman: "II",
+    anionParticle: "OH",
+    anionChargeTop: "-I",
+    leftCount: "1",
+    rightCount: "2",
+    formula: "Zn(OH)₂"
+  }, 
+{
+        anion: "chlorid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "Cl",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "NaCl"
+      },
+      {
+        anion: "chlorid",
+        stem: "drasel",
+        suffix: "ný",
+        element: "K",
+        oxRoman: "I",
+        anionParticle: "Cl",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "KCl"
+      },
+      {
+        anion: "chlorid",
+        stem: "vápe",
+        suffix: "natý",
+        element: "Ca",
+        oxRoman: "II",
+        anionParticle: "Cl",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "CaCl₂"
+      },
+      {
+        anion: "chlorid",
+        stem: "hořeč",
+        suffix: "natý",
+        element: "Mg",
+        oxRoman: "II",
+        anionParticle: "Cl",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "MgCl₂"
+      },
+      {
+        anion: "chlorid",
+        stem: "hlin",
+        suffix: "itý",
+        element: "Al",
+        oxRoman: "III",
+        anionParticle: "Cl",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "3",
+        formula: "AlCl₃"
+      },
+      {
+        anion: "chlorid",
+        stem: "želez",
+        suffix: "natý",
+        element: "Fe",
+        oxRoman: "II",
+        anionParticle: "Cl",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "FeCl₂"
+      },
+      {
+        anion: "chlorid",
+        stem: "želez",
+        suffix: "itý",
+        element: "Fe",
+        oxRoman: "III",
+        anionParticle: "Cl",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "3",
+        formula: "FeCl₃"
+      },
+      {
+        anion: "chlorid",
+        stem: "měď",
+        suffix: "natý",
+        element: "Cu",
+        oxRoman: "II",
+        anionParticle: "Cl",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "CuCl₂"
+      },
+      {
+        anion: "fluorid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "F",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "NaF"
+      },
+      {
+        anion: "fluorid",
+        stem: "drasel",
+        suffix: "ný",
+        element: "K",
+        oxRoman: "I",
+        anionParticle: "F",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "KF"
+      },
+      {
+        anion: "fluorid",
+        stem: "vápe",
+        suffix: "natý",
+        element: "Ca",
+        oxRoman: "II",
+        anionParticle: "F",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "CaF₂"
+      },
+      {
+        anion: "fluorid",
+        stem: "hlin",
+        suffix: "itý",
+        element: "Al",
+        oxRoman: "III",
+        anionParticle: "F",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "3",
+        formula: "AlF₃"
+      },
+      {
+        anion: "jodid",
+        stem: "drasel",
+        suffix: "ný",
+        element: "K",
+        oxRoman: "I",
+        anionParticle: "I",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "KI"
+      },
+      {
+        anion: "jodid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "I",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "NaI"
+      },
+      {
+        anion: "jodid",
+        stem: "stříbr",
+        suffix: "ný",
+        element: "Ag",
+        oxRoman: "I",
+        anionParticle: "I",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "AgI"
+      },
+      {
+        anion: "bromid",
+        stem: "drasel",
+        suffix: "ný",
+        element: "K",
+        oxRoman: "I",
+        anionParticle: "Br",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "KBr"
+      },
+      {
+        anion: "bromid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "Br",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "NaBr"
+      },
+      {
+        anion: "bromid",
+        stem: "stříbr",
+        suffix: "ný",
+        element: "Ag",
+        oxRoman: "I",
+        anionParticle: "Br",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "AgBr"
+      },
+      {
+        anion: "oxid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "1",
+        formula: "Na₂O"
+      },
+      {
+        anion: "oxid",
+        stem: "vápe",
+        suffix: "natý",
+        element: "Ca",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "CaO"
+      },
+      {
+        anion: "oxid",
+        stem: "hořeč",
+        suffix: "natý",
+        element: "Mg",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "MgO"
+      },
+      {
+        anion: "oxid",
+        stem: "hlin",
+        suffix: "itý",
+        element: "Al",
+        oxRoman: "III",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "3",
+        formula: "Al₂O₃"
+      },
+      {
+        anion: "oxid",
+        stem: "želez",
+        suffix: "natý",
+        element: "Fe",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "FeO"
+      },
+      {
+        anion: "oxid",
+        stem: "želez",
+        suffix: "itý",
+        element: "Fe",
+        oxRoman: "III",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "3",
+        formula: "Fe₂O₃"
+      },
+      {
+        anion: "oxid",
+        stem: "měď",
+        suffix: "natý",
+        element: "Cu",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "CuO"
+      },
+      {
+        anion: "oxid",
+        stem: "zineč",
+        suffix: "natý",
+        element: "Zn",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "ZnO"
+      },
+      {
+        anion: "oxid",
+        stem: "olov",
+        suffix: "natý",
+        element: "Pb",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "PbO"
+      },
+      {
+        anion: "oxid",
+        stem: "křem",
+        suffix: "ičitý",
+        element: "Si",
+        oxRoman: "IV",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "4",
+        formula: "SiO₂"
+      },
+      {
+        anion: "oxid",
+        stem: "uhl",
+        suffix: "ičitý",
+        element: "C",
+        oxRoman: "IV",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "4",
+        formula: "CO₂"
+      },
+      {
+        anion: "oxid",
+        stem: "uhel",
+        suffix: "natý",
+        element: "C",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "CO"
+      },
+      {
+        anion: "oxid",
+        stem: "siř",
+        suffix: "ičitý",
+        element: "S",
+        oxRoman: "IV",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "4",
+        formula: "SO₂"
+      },
+      {
+        anion: "oxid",
+        stem: "sír",
+        suffix: "ový",
+        element: "S",
+        oxRoman: "VI",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "6",
+        formula: "SO₃"
+      },
+      {
+        anion: "oxid",
+        stem: "mangan",
+        suffix: "ičitý",
+        element: "Mn",
+        oxRoman: "IV",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "4",
+        formula: "MnO₂"
+      },
+      {
+        anion: "hydroxid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "OH",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "NaOH"
+      },
+      {
+        anion: "hydroxid",
+        stem: "drasel",
+        suffix: "ný",
+        element: "K",
+        oxRoman: "I",
+        anionParticle: "OH",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "KOH"
+      },
+      {
+        anion: "hydroxid",
+        stem: "vápe",
+        suffix: "natý",
+        element: "Ca",
+        oxRoman: "II",
+        anionParticle: "OH",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "Ca(OH)₂"
+      },
+      {
+        anion: "hydroxid",
+        stem: "hořeč",
+        suffix: "natý",
+        element: "Mg",
+        oxRoman: "II",
+        anionParticle: "OH",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "Mg(OH)₂"
+      },
+      {
+        anion: "hydroxid",
+        stem: "hlin",
+        suffix: "itý",
+        element: "Al",
+        oxRoman: "III",
+        anionParticle: "OH",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "3",
+        formula: "Al(OH)₃"
+      },
+      {
+        anion: "hydroxid",
+        stem: "želez",
+        suffix: "natý",
+        element: "Fe",
+        oxRoman: "II",
+        anionParticle: "OH",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "Fe(OH)₂"
+      },
+      {
+        anion: "hydroxid",
+        stem: "želez",
+        suffix: "itý",
+        element: "Fe",
+        oxRoman: "III",
+        anionParticle: "OH",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "3",
+        formula: "Fe(OH)₃"
+      },
+      {
+        anion: "hydroxid",
+        stem: "měď",
+        suffix: "natý",
+        element: "Cu",
+        oxRoman: "II",
+        anionParticle: "OH",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "Cu(OH)₂"
+      },
+      {
+        anion: "sulfid",
+        stem: "želez",
+        suffix: "natý",
+        element: "Fe",
+        oxRoman: "II",
+        anionParticle: "S",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "FeS"
+      },
+      {
+        anion: "sulfid",
+        stem: "zineč",
+        suffix: "natý",
+        element: "Zn",
+        oxRoman: "II",
+        anionParticle: "S",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "ZnS"
+      },
+      {
+        anion: "sulfid",
+        stem: "olov",
+        suffix: "natý",
+        element: "Pb",
+        oxRoman: "II",
+        anionParticle: "S",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "PbS"
+      },
+      {
+        anion: "sulfid",
+        stem: "stříbr",
+        suffix: "ný",
+        element: "Ag",
+        oxRoman: "I",
+        anionParticle: "S",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "1",
+        formula: "Ag₂S"
+      },
+      {
+        anion: "sulfid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "S",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "1",
+        formula: "Na₂S"
+      },
+      {
+        anion: "sulfid",
+        stem: "měď",
+        suffix: "natý",
+        element: "Cu",
+        oxRoman: "II",
+        anionParticle: "S",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "CuS"
+      },
+      {
+        anion: "kyanid",
+        stem: "drasel",
+        suffix: "ný",
+        element: "K",
+        oxRoman: "I",
+        anionParticle: "CN",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "KCN"
+      },
+      {
+        anion: "kyanid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "CN",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "1",
+        formula: "NaCN"
+      },
+      {
+        anion: "kyanid",
+        stem: "vápe",
+        suffix: "natý",
+        element: "Ca",
+        oxRoman: "II",
+        anionParticle: "CN",
+        anionChargeTop: "-I",
+        leftCount: "1",
+        rightCount: "2",
+        formula: "Ca(CN)₂"
+      },
+      {
+        anion: "oxid",
+        stem: "lith",
+        suffix: "ný",
+        element: "Li",
+        oxRoman: "I",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "1",
+        formula: "Li₂O"
+      },
+      {
+        anion: "oxid",
+        stem: "hořeč",
+        suffix: "natý",
+        element: "Mg",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "MgO"
+      },
+      {
+        anion: "oxid",
+        stem: "bor",
+        suffix: "itý",
+        element: "B",
+        oxRoman: "III",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "3",
+        formula: "B₂O₃"
+      },
+      {
+        anion: "oxid",
+        stem: "křem",
+        suffix: "ičitý",
+        element: "Si",
+        oxRoman: "IV",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "4",
+        formula: "SiO₂"
+      },
+      {
+        anion: "oxid",
+        stem: "fosfor",
+        suffix: "ečný",
+        element: "P",
+        oxRoman: "V",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "5",
+        formula: "P₂O₅"
+      },
+      {
+        anion: "oxid",
+        stem: "wolfram",
+        suffix: "ový",
+        element: "W",
+        oxRoman: "VI",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "6",
+        formula: "WO₃"
+      },
+      {
+        anion: "oxid",
+        stem: "sír",
+        suffix: "ový",
+        element: "S",
+        oxRoman: "VI",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "6",
+        formula: "SO₃"
+      },
+      {
+        anion: "oxid",
+        stem: "chlor",
+        suffix: "istý",
+        element: "Cl",
+        oxRoman: "VII",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "7",
+        formula: "Cl₂O₇"
+      },
+      {
+        anion: "oxid",
+        stem: "osm",
+        suffix: "ičelý",
+        element: "Os",
+        oxRoman: "VIII",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "8",
+        formula: "OsO₄"
+      },
+      {
+        anion: "oxid",
+        stem: "zlat",
+        suffix: "itý",
+        element: "Au",
+        oxRoman: "III",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "3",
+        formula: "Au₂O₃"
+      },
+      {
+        anion: "oxid",
+        stem: "dus",
+        suffix: "itý",
+        element: "N",
+        oxRoman: "III",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "3",
+        formula: "N₂O₃"
+      },
+      {
+        anion: "oxid",
+        stem: "jod",
+        suffix: "istý",
+        element: "I",
+        oxRoman: "VII",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "7",
+        formula: "I₂O₇"
+      },
+      {
+        anion: "oxid",
+        stem: "uhl",
+        suffix: "ičitý",
+        element: "C",
+        oxRoman: "IV",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "4",
+        formula: "CO₂"
+      },
+      {
+        anion: "oxid",
+        stem: "siř",
+        suffix: "ičitý",
+        element: "S",
+        oxRoman: "IV",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "4",
+        formula: "SO₂"
+      },
+      {
+        anion: "oxid",
+        stem: "dus",
+        suffix: "ičný",
+        element: "N",
+        oxRoman: "V",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "5",
+        formula: "N₂O₅"
+      },
+      {
+        anion: "oxid",
+        stem: "dus",
+        suffix: "ný",
+        element: "N",
+        oxRoman: "I",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "1",
+        formula: "N₂O"
+      },
+      {
+        anion: "oxid",
+        stem: "mangan",
+        suffix: "ičitý",
+        element: "Mn",
+        oxRoman: "IV",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "4",
+        formula: "MnO₂"
+      },
+      {
+        anion: "oxid",
+        stem: "rtuť",
+        suffix: "natý",
+        element: "Hg",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "HgO"
+      },
+      {
+        anion: "oxid",
+        stem: "chlor",
+        suffix: "itý",
+        element: "Cl",
+        oxRoman: "III",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "3",
+        formula: "Cl₂O₃"
+      },
+      {
+        anion: "oxid",
+        stem: "bar",
+        suffix: "natý",
+        element: "Ba",
+        oxRoman: "II",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "2",
+        formula: "BaO"
+      },
+      {
+        anion: "oxid",
+        stem: "drasel",
+        suffix: "ný",
+        element: "K",
+        oxRoman: "I",
+        anionParticle: "O",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "1",
+        formula: "K₂O"
+      },
+      {
+        anion: "sulfid",
+        stem: "sod",
+        suffix: "ný",
+        element: "Na",
+        oxRoman: "I",
+        anionParticle: "S",
+        anionChargeTop: "-II",
+        leftCount: "2",
+        rightCount: "1",
+        formula: "Na₂S"
+      }
+];
+
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function mixTasksByAnion(originalTasks) {
+    const groups = {};
+    originalTasks.forEach((task) => {
+      if (!groups[task.anion]) groups[task.anion] = [];
+      groups[task.anion].push(task);
+    });
+    Object.values(groups).forEach(shuffleArray);
+    const mixed = [];
+    let previousAnion = null;
+    while (mixed.length < originalTasks.length) {
+      const availableAnions = Object.keys(groups).filter((anion) => groups[anion].length > 0);
+      let choices = availableAnions.filter((anion) => anion !== previousAnion);
+      if (choices.length === 0) choices = availableAnions;
+      choices.sort((a, b) => groups[b].length - groups[a].length || Math.random() - 0.5);
+      const topCount = groups[choices[0]].length;
+      const bestChoices = choices.filter((anion) => groups[anion].length === topCount);
+      const selectedAnion = bestChoices[Math.floor(Math.random() * bestChoices.length)];
+      mixed.push(groups[selectedAnion].pop());
+      previousAnion = selectedAnion;
+    }
+    return mixed;
+  }
+
+  tasks = mixTasksByAnion(tasks);
+
+  const inputs = [
+    ['inputElement', 'element'],
+    ['inputOxRoman', 'oxRoman'],
+    ['inputAnionParticle', 'anionParticle'],
+    ['inputAnionChargeTop', 'anionChargeTop'],
+    ['inputLeftCount', 'leftCount'],
+    ['inputRightCount', 'rightCount'],
+    ['inputFormula', 'formula']
+  ];
+
+  const tabOrder = ["inputElement", "inputOxRoman", "inputAnionParticle", "inputAnionChargeTop", "inputLeftCount", "inputRightCount", "inputFormula"];
+  let current = 0;
+  const el = (id) => document.getElementById(id);
+
+  function getFieldValue(id) {
+    return el(id).textContent || '';
+  }
+
+  function setFieldValue(id, value) {
+    el(id).textContent = value;
+  }
+
+  function focusEditable(id) {
+    const node = el(id);
+    node.focus();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function normalize(value) {
+    let text = String(value)
+      .trim()
+      .toLowerCase()
+      .replaceAll(' ', '')
+      .replaceAll('.', '')
+      .replaceAll('−', '-')
+      .replaceAll('–', '-')
+      .replaceAll('₀', '0')
+      .replaceAll('₁', '1')
+      .replaceAll('₂', '2')
+      .replaceAll('₃', '3')
+      .replaceAll('₄', '4')
+      .replaceAll('₅', '5')
+      .replaceAll('₆', '6')
+      .replaceAll('₇', '7')
+      .replaceAll('₈', '8')
+      .replaceAll('₉', '9')
+      .replaceAll('ⅰ', 'i')
+      .replaceAll('ⅱ', 'ii')
+      .replaceAll('ⅲ', 'iii')
+      .replaceAll('ⅳ', 'iv')
+      .replaceAll('ⅴ', 'v')
+      .replaceAll('ⅵ', 'vi')
+      .replaceAll('ⅶ', 'vii')
+      .replaceAll('ⅷ', 'viii')
+      .normalize('NFC');
+
+    if (text === '1-' || text === '-1' || text === '-i') return '-i';
+    if (text === '2-' || text === '-2' || text === '-ii') return '-ii';
+    if (text === '3-' || text === '-3' || text === '-iii') return '-iii';
+    return text;
+  }
+
+  function setupCustomTabOrder() {
+    tabOrder.forEach((id, index) => {
+      const node = el(id);
+      node.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        event.preventDefault();
+        const step = event.shiftKey ? -1 : 1;
+        const nextIndex = (index + step + tabOrder.length) % tabOrder.length;
+        focusEditable(tabOrder[nextIndex]);
+      });
+      node.addEventListener('paste', (event) => {
+        event.preventDefault();
+        const text = (event.clipboardData || window.clipboardData).getData('text');
+        document.execCommand('insertText', false, text.replace(/[\r\n]+/g, ' '));
+      });
+    });
+  }
+
+  function clearFields() {
+    inputs.forEach(([id]) => {
+      el(id).textContent = '';
+      el(id).classList.remove('ok', 'bad');
+    });
+    el('message').className = 'message';
+    el('message').innerHTML = '';
+  }
+
+  function loadTask() {
+    const task = tasks[current];
+    el('givenAnion').textContent = task.anion;
+    el('givenStem').textContent = task.stem;
+    el('givenSuffix').textContent = task.suffix;
+    clearFields();
+    setTimeout(() => focusEditable('inputElement'), 0);
+  }
+
+  function checkAnswers() {
+    const task = tasks[current];
+    let allOk = true;
+
+    inputs.forEach(([id, key]) => {
+      const ok = normalize(getFieldValue(id)) === normalize(task[key]);
+      el(id).classList.toggle('ok', ok);
+      el(id).classList.toggle('bad', !ok);
+      if (!ok) allOk = false;
+    });
+
+    el('message').className = 'message ' + (allOk ? 'ok' : 'bad');
+    el('message').innerHTML = allOk
+      ? `Správně ✅ Vzorec je <strong>${task.formula}</strong>.`
+      : 'Něco nesedí ❌ Oprav červeně orámovaná políčka.';
+  }
+
+  function showSolution() {
+    const task = tasks[current];
+    inputs.forEach(([id, key]) => {
+      setFieldValue(id, task[key]);
+      el(id).classList.remove('bad');
+      el(id).classList.add('ok');
+    });
+    el('message').className = 'message info';
+    el('message').innerHTML =
+      `<strong>Řešení je doplněné do políček.</strong><br>` +
+      `Prvek <strong>${task.element}</strong>, oxidační číslo <strong>${task.oxRoman}</strong>; ` +
+      `částice <strong>${task.anionParticle}</strong>, oxidační číslo aniontu <strong>${task.anionChargeTop}</strong>.<br>` +
+      `Dolní čísla: <strong>${task.leftCount}</strong> a <strong>${task.rightCount}</strong>. Vzorec: <strong>${task.formula}</strong>.`;
+  }
+
+  function nextTask() {
+    current = (current + 1) % tasks.length;
+    loadTask();
+  }
+
+  el('checkBtn').addEventListener('click', checkAnswers);
+  el('solutionBtn').addEventListener('click', showSolution);
+  el('nextBtn').addEventListener('click', nextTask);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.target.classList.contains('field')) checkAnswers();
+  });
+
+  setupCustomTabOrder();
+  loadTask();
+</script>
+</body>
+</html>
