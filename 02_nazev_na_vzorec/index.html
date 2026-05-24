@@ -2440,6 +2440,24 @@
     el(id).textContent = value;
   }
 
+  const subscriptDigits = {
+    '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+    '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉'
+  };
+
+  function toSubscriptDigits(value) {
+    return String(value).replace(/[0-9]/g, (digit) => subscriptDigits[digit]);
+  }
+
+  function formatFormulaInput() {
+    const node = el('inputFormula');
+    const formatted = toSubscriptDigits(node.textContent || '').replace(/\s+/g, '');
+    if (node.textContent !== formatted) {
+      node.textContent = formatted;
+      focusEditable('inputFormula');
+    }
+  }
+
   function focusEditable(id) {
     const node = el(id);
     node.focus();
@@ -2573,6 +2591,7 @@
   el('checkBtn').addEventListener('click', checkAnswers);
   el('solutionBtn').addEventListener('click', showSolution);
   el('nextBtn').addEventListener('click', nextTask);
+  el('inputFormula').addEventListener('input', formatFormulaInput);
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.target.classList.contains('field')) checkAnswers();
   });
